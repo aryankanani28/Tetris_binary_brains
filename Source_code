@@ -1,0 +1,210 @@
+#include <iostream>
+#include <vector>
+#include <conio.h>
+#include <windows.h>
+#include <ctime>
+#include <cstdlib>
+using namespace std;
+
+const int WIDTH = 10;
+const int HEIGHT = 20;
+char grid[HEIGHT][WIDTH];
+int score = 0;
+int highScore = 0;
+HANDLE hConsole;
+
+vector<vector<vector<int>>> tetrominoes = {
+    {{1, 1, 1, 1}}, // I
+    {{2, 2}, {2, 2}}, // O
+    {{0, 3, 0}, {3, 3, 3}}, // T
+    {{0, 4, 4}, {4, 4, 0}}, // S
+    {{5, 5, 0}, {0, 5, 5}}, // Z
+    {{6, 0, 0}, {6, 6, 6}}, // L
+    {{0, 0, 7}, {7, 7, 7}}  // J
+};
+
+struct Tetromino {
+    vector<vector<int>> shape;
+    int x, y;
+};
+Tetromino currentTetromino;
+
+void initializeGrid() {
+    for (int i = 0; i < HEIGHT; i++)
+        for (int j = 0; j < WIDTH; j++)
+            grid[i][j] = '.';
+}
+
+void clearScreen() {
+    system("cls");
+}
+
+void setCursorPosition(int x, int y) {
+    COORD pos = { (SHORT)x, (SHORT)y };
+    SetConsoleCursorPosition(hConsole, pos);
+}
+
+void printGrid(const Tetromino &currentTetromino) {
+    clearScreen();
+    char temp[HEIGHT][WIDTH];
+    for (int i = 0; i < HEIGHT; i++)
+        for (int j = 0; j < WIDTH; j++)
+            temp[i][j] = grid[i][j];
+
+    for (int i = 0; i < currentTetromino.shape.size(); i++) {
+        for (int j = 0; j < currentTetromino.shape[i].size(); j++) {
+            if (currentTetromino.shape[i][j])
+                temp[currentTetromino.y + i][currentTetromino.x + j] = '#';
+        }
+    }
+
+    setCursorPosition(0, 0);
+    for (int i = 0; i < WIDTH + 2; i++) cout << "#";
+    cout << "\n";
+
+    for (int i = 0; i < HEIGHT; i++) {
+        cout << "#";
+        for (int j = 0; j < WIDTH; j++)
+            cout << temp[i][j];
+        cout << "#\n";
+    }
+
+    for (int i = 0; i < WIDTH + 2; i++) cout << "#";
+    cout << "\nScore: " << score << "  High Score: " << highScore << "\n";
+}
+
+bool canMove(int dx, int dy, const vector<vector<int>> &shape) {
+    for (int i = 0; i < shape.size(); i++) {
+        for (int j = 0; j < shape[i].size(); j++) {
+            if (shape[i][j]) {
+                int newX = currentTetromino.x + j + dx;
+                int newY = currentTetromino.y + i + dy;
+                if (newX < 0 || newX >= WIDTH || newY >= HEIGHT || (newY >= 0 && grid[newY][newX] != '.'))
+                    return false;
+            }
+        }
+    }
+    return true;
+}
+
+void rotateTetromino() {
+    int rows = currentTetromino.shape.size();
+    int cols = currentTetromino.shape[0].size();
+    vector<vector<int>> rotated(cols, vector<int>(rows, 0));
+    
+    for (int i = 0; i < rows; i++)
+        for (int j = 0; j < cols; j++)
+            rotated[j][rows - 1 - i] = currentTetromino.shape[i][j];
+    
+    // Check if rotation is valid at current position
+    if (canMove(0, 0, rotated)) {
+        // Also check if rotation would cause wall kick
+        bool canRotate = true;
+        for (int i = 0; i < rotated.size(); i++) {
+            for (int j = 0; j < rotated[i].size(); j++) {
+                if (rotated[i][j]) {
+                    int newX = currentTetromino.x + j;
+                    int newY = currentTetromino.y + i;
+                    if (newX < 0 || newX >= WIDTH || newY >= HEIGHT || (newY >= 0 && grid[newY][newX] != '.')) {
+                        canRotate = false;
+                        break;
+                    }
+                }
+            }
+            if (!canRotate) break;
+        }
+        
+        if (canRotate) {
+            currentTetromino.shape = rotated;
+        }
+    }
+}
+
+void placeTetromino() {
+    for (int i = 0; i < currentTetromino.shape.size(); i++) {
+        for (int j = 0; j < currentTetromino.shape[i].size(); j++) {
+            if (currentTetromino.shape[i][j]) {
+                if (currentTetromino.y + i >= 0) { // Only place if it's within the grid
+                    grid[currentTetromino.y + i][currentTetromino.x + j] = '#';
+                }
+            }
+        }
+    }
+}
+
+void clearLines() {
+    for (int i = HEIGHT - 1; i >= 0; i--) {
+        bool full = true;
+        for (int j = 0; j < WIDTH; j++)
+            if (grid[i][j] == '.') full = false;
+        if (full) {
+            for (int row = i; row > 0; row--)
+                for (int col = 0; col < WIDTH; col++)
+                    grid[row][col] = grid[row - 1][col];
+            for (int col = 0; col < WIDTH; col++)
+                grid[0][col] = '.';
+            score += 100;
+            i++; // Check the same row again after shifting
+            if (score > highScore) highScore = score;
+        }
+    }
+}
+
+void spawnTetromino() {
+    currentTetromino.shape = tetrominoes[rand() % tetrominoes.size()];
+    currentTetromino.x = WIDTH / 2 - currentTetromino.shape[0].size() / 2;
+    currentTetromino.y = 0;
+    
+    // Check if game over (new piece can't be placed)
+    if (!canMove(0, 0, currentTetromino.shape)) {
+        system("cls");
+        cout << "Game Over! Final Score: " << score << endl;
+        exit(0);
+    }
+}
+
+void handleInput() {
+    if (_kbhit()) {
+        int ch = _getch();
+        if (ch == 224) { // Arrow keys
+            int arrow = _getch();
+            if (arrow == 75 && canMove(-1, 0, currentTetromino.shape)) // Left
+                currentTetromino.x--;
+            else if (arrow == 77 && canMove(1, 0, currentTetromino.shape)) // Right
+                currentTetromino.x++;
+            else if (arrow == 80 && canMove(0, 1, currentTetromino.shape)) // Down
+                currentTetromino.y++;
+            else if (arrow == 72) // Up (rotate)
+                rotateTetromino();
+        } else if (ch == 32) { // Space (hard drop)
+            while (canMove(0, 1, currentTetromino.shape))
+                currentTetromino.y++;
+            placeTetromino();
+            clearLines();
+            spawnTetromino();
+            return; // Skip the automatic downward movement this frame
+        }
+    }
+}
+
+int main() {
+    srand((unsigned)time(0));
+    hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    system("cls");
+    initializeGrid();
+    spawnTetromino();
+
+    while (true) {
+        printGrid(currentTetromino);
+        handleInput();
+        if (canMove(0, 1, currentTetromino.shape)) {
+            currentTetromino.y++;
+        } else {
+            placeTetromino();
+            clearLines();
+            spawnTetromino();
+        }
+        Sleep(200); // Reduced sleep time for better responsiveness
+    }
+    return 0;
+}
