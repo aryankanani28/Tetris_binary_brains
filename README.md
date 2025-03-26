@@ -1,54 +1,57 @@
-# Tetris Game in C++ (Terminal-Based)
+# Tetris Console Game
 
-## Description
-This is a simple terminal-based implementation of the classic Tetris game written in C++. The game runs in the terminal and does not require any external graphics libraries. It makes use of basic programming concepts such as functions, classes, arrays, and standard I/O.
+## Overview
+This game is designed to be executed on Windows OS.
+This is a simple Tetris game implemented in C++ for the console. The game features falling tetrominoes, rotation, movement, line clearing, and scoring. The game runs within a terminal window and utilizes basic console manipulation for display.
 
 ## Features
-- Seven classic Tetris pieces (I, O, T, S, Z, L, J)
-- Arrow key controls for movement and rotation
-- Spacebar for hard drop
-- Score tracking based on lines cleared
-- Game over screen
+- **Tetromino Shapes**: Includes standard Tetris pieces (I, O, T, S, Z, L, J).
+- **Movement**: Move left, right, and down.
+- **Rotation**: Rotate pieces clockwise.
+- **Gravity**: Pieces automatically fall over time.
+- **Line Clearing**: Completed rows disappear, and the score increases.
+- **High Score Tracking**: Stores and updates the highest score.
+- **Game Over Detection**: Ends the game when no space is available for a new piece.
 
 ## Controls
-- **Left Arrow (←)** - Move piece left
-- **Right Arrow (→)** - Move piece right
-- **Down Arrow (↓)** - Move piece down faster
-- **Up Arrow (↑)** - Rotate piece
-- *Spacebar (` ` )* - Hard drop
-- *Q* - Quit the game
-
-## Requirements
-- A C++ compiler (e.g., g++, clang++)
-- A terminal that supports ANSI escape sequences
+- **Left Arrow (←)**: Move tetromino left.
+- **Right Arrow (→)**: Move tetromino right.
+- **Down Arrow (↓)**: Move tetromino down faster.
+- **Up Arrow (↑)**: Rotate tetromino.
+- **Spacebar**: Instantly drop tetromino to the lowest possible position.
 
 ## Compilation & Execution
-To compile the program, use the following command:
-sh
- g++ tetris.cpp -o tetris -std=c++11
+### Requirements
+- **C++ Compiler** (e.g., MinGW for Windows, g++ for Linux/Mac)
+- **Windows OS** (uses Windows-specific console manipulation functions)
 
-To run the program, use:
-sh
- ./tetris
+### Compile & Run
+```sh
+ g++ tetris.cpp -o tetris.exe
+ tetris.exe
+```
 
-
-## How to Play
-1. Start the game, and a random Tetris piece will appear at the top of the grid.
-2. Use arrow keys to move and rotate the piece.
-3. Complete horizontal lines to clear them and score points.
-4. The game ends when new pieces can no longer be placed.
-
-## Scoring
-- *1 Line Cleared* = 100 Points
-- *2 Lines Cleared* = 300 Points
-- *3 Lines Cleared* = 500 Points
-- *4 Lines Cleared (Tetris!)* = 800 Points
+## How It Works
+1. **Initializing the Grid**: A 10x20 grid is created to store tetromino positions.
+2. **Spawning Tetrominoes**: Random tetrominoes appear at the top of the grid.
+3. **User Input**: Arrow keys and spacebar allow movement and rotation.
+4. **Collision Detection**: Ensures tetrominoes move within bounds and stack correctly.
+5. **Clearing Lines**: When a row is full, it is cleared, and the score increases.
+6. **Game Over**: If a new tetromino cannot fit, the game ends.
 
 ## Credits
-- https://youtu.be/wVYKG_ch4yM?si=Ed2nSL6_Z28E33eU
-- https://www.geeksforgeeks.org/
+- https://youtu.be/wVYKG_ch4yM?si=mr6fMjFn7TqR5Xpw
+-  https://www.geeksforgeeks.org/.
 
 ## Contributions
-- Aryan Kanani. Code Developement and README file
-- Shivam Thanki. Code Developement and Rectification of errors
-- Arjunsinh Vaghela. Code Developement and OPtimization of code
+- Aryan Kanani.
+   Code Developement and README file
+- Shivam Thanki.
+   Code Developement and Rectification of errors
+- Arjunsinh Vaghela.
+   Code Developement and OPtimization of code
+
+
+
+
+
