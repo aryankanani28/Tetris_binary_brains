@@ -1,88 +1,125 @@
 #include <iostream>
 #include <vector>
-#include <conio.h>  // For keyboard input
-#include <windows.h> // For Sleep() and console handling
+#include <conio.h>
+#include <windows.h>
 #include <ctime>
 #include <cstdlib>
 using namespace std;
 
-// Define game board dimensions
 const int WIDTH = 10;
 const int HEIGHT = 20;
-char grid[HEIGHT][WIDTH]; // Grid to hold the game board
+char grid[HEIGHT][WIDTH];
 int score = 0;
 int highScore = 0;
-HANDLE hConsole; // Handle for console cursor positioning
+int level = 1;
+int linesCleared = 0;
+HANDLE hConsole;
 
-// Define Tetromino shapes using 3D vector (each shape represented as a 2D array)
 vector<vector<vector<int>>> tetrominoes = {
-    {{1, 1, 1, 1}}, // I-shape
-    {{2, 2}, {2, 2}}, // O-shape
-    {{0, 3, 0}, {3, 3, 3}}, // T-shape
-    {{0, 4, 4}, {4, 4, 0}}, // S-shape
-    {{5, 5, 0}, {0, 5, 5}}, // Z-shape
-    {{6, 0, 0}, {6, 6, 6}}, // L-shape
-    {{0, 0, 7}, {7, 7, 7}}  // J-shape
+    {{1, 1, 1, 1}}, // I-piece
+    {{2, 2}, {2, 2}}, // O-piece
+    {{0, 3, 0}, {3, 3, 3}}, // T-piece
+    {{0, 4, 4}, {4, 4, 0}}, // S-piece
+    {{5, 5, 0}, {0, 5, 5}}, // Z-piece
+    {{6, 0, 0}, {6, 6, 6}}, // L-piece
+    {{0, 0, 7}, {7, 7, 7}}  // J-piece
 };
 
-// Structure to hold Tetromino properties
 struct Tetromino {
-    vector<vector<int>> shape; // 2D array representing Tetromino shape
-    int x, y; // Position on the grid
+    vector<vector<int>> shape;
+    int x, y;
 };
 Tetromino currentTetromino;
 
-// Initialize the game grid with empty spaces
+// Screen buffer for flicker reduction
+const int BUFFER_WIDTH = WIDTH + 2;
+const int BUFFER_HEIGHT = HEIGHT + 4;
+char screenBuffer[BUFFER_HEIGHT][BUFFER_WIDTH];
+
+// Forward declaration of setCursorPosition
+void setCursorPosition(int x, int y);
+
+// Initialize screen buffer with empty spaces
+void initializeScreenBuffer() {
+    for (int i = 0; i < BUFFER_HEIGHT; i++)
+        for (int j = 0; j < BUFFER_WIDTH; j++)
+            screenBuffer[i][j] = ' ';
+}
+
+// Update screen buffer with current game state
+void updateScreenBuffer() {
+    // Clear buffer
+    for (int i = 0; i < BUFFER_HEIGHT; i++)
+        for (int j = 0; j < BUFFER_WIDTH; j++)
+            screenBuffer[i][j] = ' ';
+    
+    // Draw top border
+    for (int j = 0; j < BUFFER_WIDTH; j++)
+        screenBuffer[0][j] = '#';
+    
+    // Draw game grid
+    for (int i = 0; i < HEIGHT; i++) {
+        screenBuffer[i+1][0] = '#';
+        for (int j = 0; j < WIDTH; j++) {
+            screenBuffer[i+1][j+1] = grid[i][j];
+        }
+        screenBuffer[i+1][WIDTH+1] = '#';
+    }
+    
+    // Draw bottom border
+    for (int j = 0; j < BUFFER_WIDTH; j++)
+        screenBuffer[HEIGHT+1][j] = '#';
+    
+    // Draw current tetromino
+    for (int i = 0; i < currentTetromino.shape.size(); i++) {
+        for (int j = 0; j < currentTetromino.shape[i].size(); j++) {
+            if (currentTetromino.shape[i][j] && currentTetromino.y + i >= 0) {
+                int y = currentTetromino.y + i + 1;
+                int x = currentTetromino.x + j + 1;
+                if (y >= 1 && y < HEIGHT+1 && x >= 1 && x < WIDTH+1) {
+                    screenBuffer[y][x] = '#';
+                }
+            }
+        }
+    }
+}
+
+// Draw the entire screen from buffer
+void drawScreen() {
+    setCursorPosition(0, 0);
+    
+    // Draw game area
+    for (int i = 0; i < HEIGHT + 2; i++) {
+        for (int j = 0; j < BUFFER_WIDTH; j++) {
+            cout << screenBuffer[i][j];
+        }
+        cout << '\n';
+    }
+    
+    // Draw score information
+    cout << "Score: " << score << "  High Score: " << highScore 
+         << "  Level: " << level << "  Lines: " << linesCleared << "\n";
+}
+
+int getFallDelay() {
+    return max(50, 500 - (level - 1) * 50);
+}
+
 void initializeGrid() {
     for (int i = 0; i < HEIGHT; i++)
         for (int j = 0; j < WIDTH; j++)
-            grid[i][j] = '.'; // Empty space
+            grid[i][j] = '.';
 }
 
-// Clear the screen (Windows-specific function)
 void clearScreen() {
     system("cls");
 }
 
-// Set cursor position for smooth rendering (Windows-specific)
 void setCursorPosition(int x, int y) {
     COORD pos = { (SHORT)x, (SHORT)y };
     SetConsoleCursorPosition(hConsole, pos);
 }
 
-// Print the grid with the current Tetromino
-void printGrid(const Tetromino &currentTetromino) {
-    clearScreen();
-    char temp[HEIGHT][WIDTH];
-    
-    // Copy grid state into temp grid
-    for (int i = 0; i < HEIGHT; i++)
-        for (int j = 0; j < WIDTH; j++)
-            temp[i][j] = grid[i][j];
-    
-    // Place Tetromino on temp grid
-    for (int i = 0; i < currentTetromino.shape.size(); i++) {
-        for (int j = 0; j < currentTetromino.shape[i].size(); j++) {
-            if (currentTetromino.shape[i][j])
-                temp[currentTetromino.y + i][currentTetromino.x + j] = '#';
-        }
-    }
-    
-    // Print grid with border
-    setCursorPosition(0, 0);
-    for (int i = 0; i < WIDTH + 2; i++) cout << "#";
-    cout << "\n";
-    for (int i = 0; i < HEIGHT; i++) {
-        cout << "#";
-        for (int j = 0; j < WIDTH; j++)
-            cout << temp[i][j];
-        cout << "#\n";
-    }
-    for (int i = 0; i < WIDTH + 2; i++) cout << "#";
-    cout << "\nScore: " << score << "  High Score: " << highScore << "\n";
-}
-
-// Check if a move is possible
 bool canMove(int dx, int dy, const vector<vector<int>> &shape) {
     for (int i = 0; i < shape.size(); i++) {
         for (int j = 0; j < shape[i].size(); j++) {
@@ -97,50 +134,80 @@ bool canMove(int dx, int dy, const vector<vector<int>> &shape) {
     return true;
 }
 
-// Rotate Tetromino if possible
 void rotateTetromino() {
     int rows = currentTetromino.shape.size();
     int cols = currentTetromino.shape[0].size();
     vector<vector<int>> rotated(cols, vector<int>(rows, 0));
     
-    // Rotate matrix clockwise
+    // Perform rotation
     for (int i = 0; i < rows; i++)
         for (int j = 0; j < cols; j++)
             rotated[j][rows - 1 - i] = currentTetromino.shape[i][j];
     
-    if (canMove(0, 0, rotated)) {
+    // Only apply if valid rotation
+    if (canMove(0, 0, rotated))
         currentTetromino.shape = rotated;
-    }
 }
 
-// Place Tetromino on grid
 void placeTetromino() {
-    for (int i = 0; i < currentTetromino.shape.size(); i++) {
-        for (int j = 0; j < currentTetromino.shape[i].size(); j++) {
-            if (currentTetromino.shape[i][j]) {
+    for (int i = 0; i < currentTetromino.shape.size(); i++)
+        for (int j = 0; j < currentTetromino.shape[i].size(); j++)
+            if (currentTetromino.shape[i][j])
                 grid[currentTetromino.y + i][currentTetromino.x + j] = '#';
-            }
+}
+
+void clearLines() {
+    int linesRemoved = 0;
+    for (int i = HEIGHT - 1; i >= 0; i--) {
+        bool full = true;
+        for (int j = 0; j < WIDTH; j++)
+            if (grid[i][j] == '.') full = false;
+        
+        if (full) {
+            linesRemoved++;
+            // Shift lines down
+            for (int row = i; row > 0; row--)
+                for (int col = 0; col < WIDTH; col++)
+                    grid[row][col] = grid[row - 1][col];
+            // Clear top line
+            for (int col = 0; col < WIDTH; col++)
+                grid[0][col] = '.';
+            i++; // Re-check current row
         }
     }
+    
+    if (linesRemoved > 0) {
+        // Update score based on lines cleared
+        switch (linesRemoved) {
+            case 1: score += 100 * level; break;
+            case 2: score += 300 * level; break;
+            case 3: score += 500 * level; break;
+            case 4: score += 800 * level; break;
+        }
+        
+        linesCleared += linesRemoved;
+        level = linesCleared / 10 + 1; // Level up every 10 lines
+        if (score > highScore) highScore = score;
+    }
 }
 
-// Spawn a new Tetromino
 void spawnTetromino() {
     currentTetromino.shape = tetrominoes[rand() % tetrominoes.size()];
     currentTetromino.x = WIDTH / 2 - currentTetromino.shape[0].size() / 2;
     currentTetromino.y = 0;
+    
+    // Game over if new piece can't be placed
     if (!canMove(0, 0, currentTetromino.shape)) {
-        system("cls");
+        clearScreen();
         cout << "Game Over! Final Score: " << score << endl;
         exit(0);
     }
 }
 
-// Handle user input
 void handleInput() {
     if (_kbhit()) {
         int ch = _getch();
-        if (ch == 224) { // Arrow keys
+        if (ch == 224) { // Arrow key pressed
             int arrow = _getch();
             if (arrow == 75 && canMove(-1, 0, currentTetromino.shape)) // Left
                 currentTetromino.x--;
@@ -148,34 +215,51 @@ void handleInput() {
                 currentTetromino.x++;
             else if (arrow == 80 && canMove(0, 1, currentTetromino.shape)) // Down
                 currentTetromino.y++;
-            else if (arrow == 72) // Rotate
+            else if (arrow == 72) // Up (rotate)
                 rotateTetromino();
-        } else if (ch == 32) { // Space bar (hard drop)
+        } else if (ch == 32) { // Space (hard drop)
             while (canMove(0, 1, currentTetromino.shape))
                 currentTetromino.y++;
             placeTetromino();
+            clearLines();
             spawnTetromino();
+            return; // Skip automatic fall this frame
         }
     }
 }
 
-// Main function
 int main() {
     srand((unsigned)time(0));
     hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    system("cls");
+    clearScreen();
     initializeGrid();
+    initializeScreenBuffer();
     spawnTetromino();
+
+    auto lastFallTime = GetTickCount();
+    int fallDelay = getFallDelay();
+
+    // Main game loop
     while (true) {
-        printGrid(currentTetromino);
+        updateScreenBuffer();
+        drawScreen();
         handleInput();
-        if (canMove(0, 1, currentTetromino.shape)) {
-            currentTetromino.y++;
-        } else {
-            placeTetromino();
-            spawnTetromino();
+        
+        // Time-based tetromino falling
+        auto currentTime = GetTickCount();
+        if (currentTime - lastFallTime >= fallDelay) {
+            if (canMove(0, 1, currentTetromino.shape)) {
+                currentTetromino.y++;
+            } else {
+                placeTetromino();
+                clearLines();
+                spawnTetromino();
+            }
+            lastFallTime = currentTime;
+            fallDelay = getFallDelay(); // Update speed based on level
         }
-        Sleep(200); // Adjust speed
+        
+        Sleep(10); // Prevent CPU overuse
     }
     return 0;
 }
